@@ -6,16 +6,14 @@ import sys
 import asyncio
 from pystyle import Colors, Colorate, Center
 
+DISCORD_URL = "wss://gateway.discord.gg/?encoding=json&v=8"
+DEFAULT_GAME_NAME = "discord.gg/vast"
+DEFAULT_GAME_DETAILS = "discord.gg/vast"
+DEFAULT_GAME_STATE = "discord.gg/vast"
 
-config = {
-    "details": "discord.gg/vast",
-    "state": "discord.gg/vast",
-    "name": "discord.gg/vast",
-}
 class Stats:
     online = 0
     total = 0
-
 
 class Onliner:
     def __init__(self, token) -> None:
@@ -25,7 +23,7 @@ class Onliner:
     async def start(self):
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.ws_connect("wss://gateway.discord.gg/?encoding=json&v=8") as ws:
+                async with session.ws_connect(DISCORD_URL) as ws:
                     async for msg in ws:
                         response = msg.data
                         event = json.loads(response)
@@ -43,10 +41,10 @@ class Onliner:
                                     },
                                     "presence": {
                                         "game": {
-                                            "name": config["name"],
+                                            "name": DEFAULT_GAME_NAME,
                                             "type": 0,
-                                            "details": config["details"],
-                                            "state": config["state"],
+                                            "details": DEFAULT_GAME_DETAILS,
+                                            "state": DEFAULT_GAME_STATE,
                                         },
                                         "status": random.choice(self.statuses),
                                         "since": 0,
@@ -59,53 +57,50 @@ class Onliner:
                             }
                         )
                         Stats.online += 1
-                        # print("\033[32mOnline\033[0m |", self.token, end="\r")
 
                         while True:
                             heartbeatJSON = {"op": 1, "token": self.token, "d": 0}
                             await ws.send_json(heartbeatJSON)
                             await asyncio.sleep(heartbeat_interval)
         except Exception as e:
-            pass
+            print(f"An error occurred: {e}")
 
-async def BannerThread(b=False):
+async def banner_thread():
     while True:
-        if Stats.online == Stats.total: break
+        if Stats.online == Stats.total:
+            break
         
         os.system("cls||clear")
-        print(
-            Center.XCenter(
-                Colorate.Vertical(
-                    Colors.purple_to_blue,
-                    """
-                        ┬  ┬┌─┐┌─┐┌┬┐  ┌─┐┌┐┌┬  ┬┌┐┌┌─┐┬─┐
-                        └┐┌┘├─┤└─┐ │   │ │││││  ││││├┤ ├┬┘
-                         └┘ ┴ ┴└─┘ ┴   └─┘┘└┘┴─┘┴┘└┘└─┘┴└─
-                            
-                          ╭───────────────────────────╮
-                          │      Online: %s        │
-                          │       Total: %s        │
-                          ╰───────────────────────────╯
-                """ % (f'{Stats.online:<5}', f'{Stats.total:<5}'),
-                )
-            )
-        )
+        banner = f"""
+            ┬  ┬┌─┐┌─┐┌┬┐  ┌─┐┌┐┌┬  ┬┌┐┌┌─┐┬─┐
+            └┐┌┘├─┤└─┐ │   │ │││││  ││││├┤ ├┬┘
+             └┘ ┴ ┴└─┘ ┴   └─┘┘└┘┴─┘┴┘└┘└─┘┴└─
+            
+          ╭───────────────────────────╮
+          │      Online: {Stats.online:<5}        │
+          │       Total: {Stats.total:<5}        │
+          ╰───────────────────────────╯
+        """
+        print(Center.XCenter(Colorate.Vertical(Colors.purple_to_blue, banner)))
         await asyncio.sleep(0.1)
-    
+
 async def main():
     os.system("cls||clear")
     tasks = []
-    Stats.total = len(open("./tokens.txt", "r").readlines())
 
-    asyncio.create_task(BannerThread())
+    with open("./tokens.txt", "r") as tokens_file:
+        tokens = [line.strip() for line in tokens_file]
+
+    Stats.total = len(tokens)
+
+    asyncio.create_task(banner_thread())
     async with aiohttp.ClientSession() as session:
-        for token in open("./tokens.txt", "r").readlines():
+        for token in tokens:
             onliner = Onliner(token)
             task = asyncio.create_task(onliner.start())
             tasks.append(task)
 
         await asyncio.gather(*tasks)
-
 
 if __name__ == "__main__":
     asyncio.run(main())
